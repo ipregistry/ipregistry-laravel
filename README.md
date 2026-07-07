@@ -165,15 +165,15 @@ Everything is configured in `config/ipregistry.php`, backed by environment varia
 |---|---|---|---|
 | `api_key` | `IPREGISTRY_API_KEY` | None | Your Ipregistry API key. |
 | `base_url` | `IPREGISTRY_BASE_URL` | default endpoint | API endpoint; `eu` selects the EU-based endpoint, or set a full URL. |
-| `fields` | `IPREGISTRY_FIELDS` | full response | Default field selection for all lookups, e.g. `ip,location,security`. |
-| `hostname` | `IPREGISTRY_HOSTNAME` | `false` | Resolve reverse-DNS hostnames. |
-| `timeout` | `IPREGISTRY_TIMEOUT` | `5` | Per-request timeout in seconds. |
-| `retries.max` | `IPREGISTRY_RETRIES` | `1` | Automatic retries; kept low so failures never stall page loads. |
 | `cache.enabled` | `IPREGISTRY_CACHE_ENABLED` | `true` | Cache successful lookups. |
 | `cache.store` | `IPREGISTRY_CACHE_STORE` | default store | Any store from `config/cache.php`. |
 | `cache.ttl` | `IPREGISTRY_CACHE_TTL` | `600` | Cache lifetime in seconds. |
 | `development_ip` | `IPREGISTRY_DEVELOPMENT_IP` | None | Fixed public IP used when the client IP is private (localhost). |
 | `fail_open` | `IPREGISTRY_FAIL_OPEN` | `true` | Let requests through when lookups fail. |
+| `fields` | `IPREGISTRY_FIELDS` | full response | Default field selection for all lookups, e.g. `ip,location,security`. |
+| `hostname` | `IPREGISTRY_HOSTNAME` | `false` | Resolve reverse-DNS hostnames. |
+| `retries.max` | `IPREGISTRY_RETRIES` | `1` | Automatic retries; kept low so failures never stall page loads. |
+| `timeout` | `IPREGISTRY_TIMEOUT` | `5` | Per-request timeout in seconds. |
 
 > Tip: always set `IPREGISTRY_FIELDS` to save credits. For example, `ip,location,security` covers geo features, blocking, and GDPR detection.
 
