@@ -1,0 +1,10 @@
+# Keep dist installs (composer require) lean: exclude development-only files.
+/.github            export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/CONTRIBUTING.md    export-ignore
+/Makefile           export-ignore
+/phpstan.neon.dist  export-ignore
+/phpunit.xml.dist   export-ignore
+/tests              export-ignore

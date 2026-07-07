@@ -1,0 +1,12 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: max
+    treatPhpDocTypesAsCertain: false
+    paths:
+        - src
+        - tests
+    ignoreErrors:
+        # The ipregistry() macro is registered on Request at boot time.
+        - '#Call to an undefined method Illuminate\\Http\\Request::ipregistry\(\)#'

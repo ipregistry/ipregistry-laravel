@@ -1,0 +1,79 @@
+{
+    "name": "ipregistry/ipregistry-laravel",
+    "description": "Official Laravel integration for the Ipregistry IP geolocation and threat data API.",
+    "license": "Apache-2.0",
+    "type": "library",
+    "keywords": [
+        "ipregistry",
+        "laravel",
+        "ip",
+        "geolocation",
+        "geoip",
+        "ip-address",
+        "ip-geolocation",
+        "ip-data",
+        "threat-data",
+        "vpn-detection",
+        "proxy-detection",
+        "middleware"
+    ],
+    "homepage": "https://ipregistry.co",
+    "support": {
+        "issues": "https://github.com/ipregistry/ipregistry-laravel/issues",
+        "source": "https://github.com/ipregistry/ipregistry-laravel",
+        "docs": "https://ipregistry.co/docs",
+        "email": "support@ipregistry.co"
+    },
+    "require": {
+        "php": ">=8.2",
+        "illuminate/cache": "^12.0 || ^13.0",
+        "illuminate/console": "^12.0 || ^13.0",
+        "illuminate/contracts": "^12.0 || ^13.0",
+        "illuminate/http": "^12.0 || ^13.0",
+        "illuminate/support": "^12.0 || ^13.0",
+        "ipregistry/ipregistry-php": "^1.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.68",
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.5 || ^12.0 || ^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ipregistry\\Laravel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ipregistry\\Laravel\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ipregistry\\Laravel\\IpregistryServiceProvider"
+            ],
+            "aliases": {
+                "Ipregistry": "Ipregistry\\Laravel\\Facades\\Ipregistry"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "scripts": {
+        "cs": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix",
+        "stan": "phpstan analyse",
+        "test": "phpunit"
+    },
+    "scripts-descriptions": {
+        "cs": "Check coding style without modifying files",
+        "cs-fix": "Fix coding style issues",
+        "stan": "Run static analysis",
+        "test": "Run the test suite"
+    }
+}
