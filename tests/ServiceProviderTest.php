@@ -66,6 +66,16 @@ final class ServiceProviderTest extends TestCase
         self::assertSame('https://example.test', IpregistryServiceProvider::resolveBaseUrl('https://example.test'));
     }
 
+    public function testMissingApiKeyThrowsAnActionableMessage(): void
+    {
+        config()->set('ipregistry.api_key', null);
+
+        $this->expectException(\Ipregistry\Exception\ClientException::class);
+        $this->expectExceptionMessage('IPREGISTRY_API_KEY');
+
+        $this->laravel()->make(IpregistryClient::class);
+    }
+
     public function testConfigIsMerged(): void
     {
         self::assertSame('test-key', config('ipregistry.api_key'));

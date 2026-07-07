@@ -26,6 +26,7 @@ use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Ipregistry\Exception\ClientException;
 use Ipregistry\IpregistryClient;
 use Ipregistry\Laravel\Console\LookupCommand;
 use Ipregistry\Laravel\Http\Middleware\BlockCountries;
@@ -57,8 +58,13 @@ final class IpregistryServiceProvider extends ServiceProvider
             /** @var array<string, mixed> $cache */
             $cache = \is_array($config['cache'] ?? null) ? $config['cache'] : [];
 
+            $apiKey = \is_string($config['api_key'] ?? null) ? $config['api_key'] : '';
+            if ('' === $apiKey) {
+                throw new ClientException('The Ipregistry API key is not configured. Set IPREGISTRY_API_KEY in your environment (or the ipregistry.api_key configuration value). Sign up at https://ipregistry.co to get a key.');
+            }
+
             return new IpregistryClient(
-                apiKey: \is_string($config['api_key'] ?? null) ? $config['api_key'] : '',
+                apiKey: $apiKey,
                 baseUrl: self::resolveBaseUrl(\is_string($config['base_url'] ?? null) ? $config['base_url'] : null),
                 timeout: self::floatValue($config['timeout'] ?? null, 5.0),
                 maxRetries: self::intValue($retries['max'] ?? null, 1),
