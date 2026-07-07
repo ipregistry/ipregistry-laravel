@@ -24,6 +24,9 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Ipregistry\Exception\ClientException;
 use Ipregistry\Laravel\Facades\Ipregistry;
+use Ipregistry\Laravel\Http\Middleware\BlockCountries;
+use Ipregistry\Laravel\Http\Middleware\BlockThreats;
+use Ipregistry\Laravel\Http\Middleware\EnrichWithIpregistry;
 
 final class MiddlewareTest extends TestCase
 {
@@ -54,6 +57,16 @@ final class MiddlewareTest extends TestCase
 
         $router->get('/no-tor', static fn (): string => 'ok')
             ->middleware('ipregistry.threats:tor,vpn');
+
+        // Static builders, equivalent to the alias syntax above.
+        $router->get('/built/geo', $countryOf)
+            ->middleware(EnrichWithIpregistry::using('ip', 'location'));
+
+        $router->get('/built/embargo', static fn (): string => 'ok')
+            ->middleware(BlockCountries::block('KP', 'IR'));
+
+        $router->get('/built/no-tor', static fn (): string => 'ok')
+            ->middleware(BlockThreats::including('tor'));
     }
 
     public function testEnrichMiddlewareExposesDataToHandlers(): void
@@ -187,5 +200,52 @@ final class MiddlewareTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '8.8.8.8'])
             ->get('/no-tor')
             ->assertOk();
+    }
+
+    public function testStaticBuildersProduceWorkingMiddleware(): void
+    {
+        Ipregistry::fake(['*' => [
+            'location' => ['country' => ['code' => 'KP']],
+            'security' => ['is_tor' => true],
+        ]]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '175.45.176.1'])
+            ->getJson('/built/geo')
+            ->assertOk()
+            ->assertJson(['country' => 'KP']);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '175.45.176.1'])
+            ->get('/built/embargo')
+            ->assertStatus(451);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '175.45.176.1'])
+            ->get('/built/no-tor')
+            ->assertStatus(403);
+    }
+
+    public function testStaticBuildersValidateAtRouteDefinitionTime(): void
+    {
+        self::assertSame(EnrichWithIpregistry::class, EnrichWithIpregistry::using());
+        self::assertSame(EnrichWithIpregistry::class.':ip,location', EnrichWithIpregistry::using('ip', 'location'));
+        self::assertSame(BlockCountries::class.':block,KP,IR', BlockCountries::block('KP', 'IR'));
+        self::assertSame(BlockCountries::class.':allow,FR', BlockCountries::allow('FR'));
+        self::assertSame(BlockThreats::class.':tor,vpn', BlockThreats::including('tor', 'vpn'));
+
+        $this->expectException(\InvalidArgumentException::class);
+        BlockCountries::block('France');
+    }
+
+    public function testBlockThreatsBuilderRejectsUnknownSignals(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        BlockThreats::including('teapot');
+    }
+
+    public function testBlockCountriesBuilderRequiresACountry(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        BlockCountries::allow();
     }
 }

@@ -90,9 +90,14 @@ Dependency injection works too: type-hint `Ipregistry\Laravel\Ipregistry`, or th
 The `ipregistry` middleware performs the lookup before your handlers run. Middleware parameters select the response fields for the route, keeping responses small and fast:
 
 ```php
-Route::middleware('ipregistry:ip,location,security')->group(function () {
+use Ipregistry\Laravel\Http\Middleware\EnrichWithIpregistry;
+
+Route::middleware(EnrichWithIpregistry::using('ip', 'location', 'security'))->group(function () {
     // $request->ipregistry() answers from memory in here.
 });
+
+// Equivalent alias syntax:
+Route::middleware('ipregistry:ip,location,security')->group(...);
 ```
 
 The middleware is optional: `$request->ipregistry()` triggers the lookup lazily wherever it is first called. Use the middleware when you want the data fetched up front, a per-route field selection, or fail-closed behavior.
@@ -102,22 +107,34 @@ The middleware is optional: `$request->ipregistry()` triggers the lookup lazily 
 Respond with `451 Unavailable For Legal Reasons` by ISO 3166-1 alpha-2 country code:
 
 ```php
+use Ipregistry\Laravel\Http\Middleware\BlockCountries;
+
 // Block visitors from the listed countries:
-Route::middleware('ipregistry.countries:block,KP,IR')->group(...);
+Route::middleware(BlockCountries::block('KP', 'IR'))->group(...);
 
 // Or only allow visitors from the listed countries:
-Route::middleware('ipregistry.countries:allow,FR,BE')->group(...);
+Route::middleware(BlockCountries::allow('FR', 'BE'))->group(...);
+
+// Equivalent alias syntax:
+Route::middleware('ipregistry.countries:block,KP,IR')->group(...);
 ```
+
+The static builders validate the country codes at route-definition time, so a typo fails fast instead of silently never matching.
 
 ### Blocking proxies, Tor, and threats
 
 Respond with `403 Forbidden` to visitors flagged by Ipregistry security data. The `is_threat`, `is_attacker`, and `is_abuser` signals are always blocked; anonymization signals are opt-in:
 
 ```php
+use Ipregistry\Laravel\Http\Middleware\BlockThreats;
+
 // Threats, attackers, and abusers:
-Route::middleware('ipregistry.threats')->group(...);
+Route::middleware(BlockThreats::including())->group(...);
 
 // Additionally block proxies, Tor, and VPNs:
+Route::middleware(BlockThreats::including('proxy', 'tor', 'vpn'))->group(...);
+
+// Equivalent alias syntax:
 Route::middleware('ipregistry.threats:proxy,tor,vpn')->group(...);
 ```
 

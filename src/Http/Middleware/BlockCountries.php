@@ -48,6 +48,50 @@ final class BlockCountries
     }
 
     /**
+     * Builds the middleware string blocking the given countries, typed and
+     * validated at route-definition time. Equivalent to the
+     * 'ipregistry.countries:block,...' alias syntax:
+     *
+     * ```php
+     * Route::middleware(BlockCountries::block('KP', 'IR'))
+     * ```
+     */
+    public static function block(string ...$countries): string
+    {
+        return self::build('block', $countries);
+    }
+
+    /**
+     * Builds the middleware string allowing only the given countries.
+     * Equivalent to the 'ipregistry.countries:allow,...' alias syntax:
+     *
+     * ```php
+     * Route::middleware(BlockCountries::allow('FR', 'BE'))
+     * ```
+     */
+    public static function allow(string ...$countries): string
+    {
+        return self::build('allow', $countries);
+    }
+
+    /**
+     * @param array<string> $countries
+     */
+    private static function build(string $mode, array $countries): string
+    {
+        if ([] === $countries) {
+            throw new \InvalidArgumentException(\sprintf('BlockCountries::%s() expects at least one ISO 3166-1 alpha-2 country code', $mode));
+        }
+        foreach ($countries as $country) {
+            if (1 !== preg_match('/^[A-Za-z]{2}$/', $country)) {
+                throw new \InvalidArgumentException(\sprintf("'%s' is not an ISO 3166-1 alpha-2 country code (expected two letters, such as 'US')", $country));
+            }
+        }
+
+        return static::class.':'.$mode.','.implode(',', $countries);
+    }
+
+    /**
      * @param \Closure(Request): Response $next
      */
     public function handle(Request $request, \Closure $next, string $mode = 'block', string ...$countries): Response

@@ -50,6 +50,20 @@ final class EnrichWithIpregistry
     }
 
     /**
+     * Builds the middleware string with a per-route field selection, typed
+     * and IDE-friendly. Equivalent to the 'ipregistry:...' alias syntax:
+     *
+     * ```php
+     * Route::middleware(EnrichWithIpregistry::using('ip', 'location'))
+     * // same as: Route::middleware('ipregistry:ip,location')
+     * ```
+     */
+    public static function using(string ...$fields): string
+    {
+        return [] === $fields ? static::class : static::class.':'.implode(',', $fields);
+    }
+
+    /**
      * @param \Closure(Request): Response $next
      */
     public function handle(Request $request, \Closure $next, string ...$fields): Response

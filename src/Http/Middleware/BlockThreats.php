@@ -54,6 +54,28 @@ final class BlockThreats
     }
 
     /**
+     * Builds the middleware string with additional opt-in signals, typed
+     * and validated at route-definition time. The core threat signals are
+     * always blocked. Equivalent to the 'ipregistry.threats:...' alias
+     * syntax:
+     *
+     * ```php
+     * Route::middleware(BlockThreats::including('tor', 'vpn'))
+     * // same as: Route::middleware('ipregistry.threats:tor,vpn')
+     * ```
+     */
+    public static function including(string ...$signals): string
+    {
+        foreach ($signals as $signal) {
+            if (!\in_array(strtolower($signal), self::SIGNALS, true)) {
+                throw new \InvalidArgumentException(\sprintf("'%s' is not a known signal; accepted signals are %s", $signal, implode(', ', self::SIGNALS)));
+            }
+        }
+
+        return [] === $signals ? static::class : static::class.':'.implode(',', $signals);
+    }
+
+    /**
      * @param \Closure(Request): Response $next
      */
     public function handle(Request $request, \Closure $next, string ...$signals): Response
