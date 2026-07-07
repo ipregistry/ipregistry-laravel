@@ -1,0 +1,160 @@
+name: Release
+
+# Manually triggered full release (Actions > Release > Run workflow): validates the version, runs the test gate,
+# creates the vX.Y.Z tag, publishes a GitHub Release whose notes are taken
+# from the matching section of CHANGELOG.md, and notifies Packagist.
+#
+# The CHANGELOG must already contain a "## [X.Y.Z] - <date>" section for the
+# version being released, and Ipregistry::VERSION must match it.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 1.2.0 or v1.2.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl
+          coverage: none
+
+      - name: Validate version
+        # The raw input is passed through the environment (never interpolated
+        # into the shell) and strictly validated before any further use.
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${VERSION_INPUT#v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::Invalid version '$VERSION_INPUT'. Expected semver such as 1.2.0 or v1.2.0."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Ensure tag does not already exist
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists locally."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists on the remote."
+            exit 1
+          fi
+
+      - name: Ensure Ipregistry::VERSION matches
+        run: |
+          set -euo pipefail
+          declared="$(php -r "require 'src/Ipregistry.php'; echo Ipregistry\\Laravel\\Ipregistry::VERSION;")"
+          if [ "$declared" != "$VERSION" ]; then
+            echo "::error::Ipregistry::VERSION is '$declared' but the release version is '$VERSION'. Update src/Ipregistry.php first."
+            exit 1
+          fi
+
+      - name: Extract changelog section
+        run: |
+          set -euo pipefail
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { capture=1; next }
+            capture && (/^## / || /^\[[^][]+\]:[[:space:]]/) { exit }
+            capture { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No changelog section found for [$VERSION] in CHANGELOG.md."
+            exit 1
+          fi
+          echo "Release notes for $TAG:"
+          echo "----------------------------------------"
+          cat release-notes.md
+          echo "----------------------------------------"
+
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress
+
+      - name: Run local checks (validate, static analysis, style, tests)
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: '1'
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          vendor/bin/phpstan analyse --no-progress
+          vendor/bin/php-cs-fixer fix --dry-run --diff
+          vendor/bin/phpunit
+
+      - name: Run system tests (live API)
+        env:
+          IPREGISTRY_API_KEY: ${{ secrets.IPREGISTRY_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${IPREGISTRY_API_KEY:-}" ]; then
+            echo "::error::IPREGISTRY_API_KEY secret is required to run system tests before a release."
+            exit 1
+          fi
+          vendor/bin/phpunit --testsuite system
+
+      - name: Create tag and GitHub release
+        # If an organization rule blocks the default Actions token (GITHUB_TOKEN)
+        # from creating v*-prefixed tags, provide a RELEASE_TOKEN secret (a PAT
+        # owned by a user allowed to create such tags, with Contents: write) so
+        # the tag and release are created as that user.
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          prerelease=""
+          case "$VERSION" in
+            *-*) prerelease="--prerelease" ;;
+          esac
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --notes-file release-notes.md \
+            $prerelease
+          echo "Released $TAG: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
+
+      - name: Notify Packagist
+        # Publication happens on Packagist, which normally picks up the new tag
+        # through the GitHub webhook. This explicit API ping makes the release
+        # visible promptly and acts as a fallback when the webhook is missing.
+        # Requires the PACKAGIST_USERNAME and PACKAGIST_API_TOKEN secrets;
+        # best-effort otherwise.
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PACKAGIST_USERNAME:-}" ] || [ -z "${PACKAGIST_API_TOKEN:-}" ]; then
+            echo "::warning::PACKAGIST_USERNAME / PACKAGIST_API_TOKEN not set; relying on the Packagist GitHub webhook to pick up the release."
+            exit 0
+          fi
+          response="$(curl -sS -X POST \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"repository\":{\"url\":\"${{ github.server_url }}/${{ github.repository }}\"}}")" \
+            || { echo "::warning::Packagist notification failed; the webhook will still update the package."; exit 0; }
+          echo "$response"
+          case "$response" in
+            *'"status":"success"'*) echo "Packagist notified." ;;
+            *) echo "::warning::Packagist did not accept the update: $response" ;;
+          esac

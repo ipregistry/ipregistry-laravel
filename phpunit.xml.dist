@@ -4,6 +4,7 @@
          bootstrap="vendor/autoload.php"
          cacheDirectory=".phpunit.cache"
          colors="true"
+         defaultTestSuite="default"
          failOnWarning="true"
          failOnDeprecation="true"
          failOnNotice="true"
@@ -11,8 +12,14 @@
          displayDetailsOnTestsThatTriggerWarnings="true"
          displayDetailsOnTestsThatTriggerNotices="true">
     <testsuites>
+        <!-- Offline tests: no API key or network required. -->
         <testsuite name="default">
             <directory>tests</directory>
+            <exclude>tests/System</exclude>
+        </testsuite>
+        <!-- Live system tests: require IPREGISTRY_API_KEY and consume credits. -->
+        <testsuite name="system">
+            <directory>tests/System</directory>
         </testsuite>
     </testsuites>
     <source>

@@ -1,4 +1,4 @@
-.PHONY: all install test cover stan cs cs-fix validate
+.PHONY: all install test system cover stan cs cs-fix validate
 
 all: validate cs stan test
 
@@ -7,6 +7,10 @@ install:
 
 test:
 	vendor/bin/phpunit
+
+# Live system tests. Requires IPREGISTRY_API_KEY; consumes credits.
+system:
+	vendor/bin/phpunit --testsuite system
 
 cover:
 	vendor/bin/phpunit --coverage-text
