@@ -87,7 +87,7 @@ Dependency injection works too: type-hint `Ipregistry\Laravel\Ipregistry`, or th
 
 ### Enriching requests
 
-The `ipregistry` middleware performs the lookup before your handlers run. Middleware parameters select the response fields for the route, saving credits and latency:
+The `ipregistry` middleware performs the lookup before your handlers run. Middleware parameters select the response fields for the route, keeping responses small and fast:
 
 ```php
 Route::middleware('ipregistry:ip,location,security')->group(function () {
@@ -175,7 +175,7 @@ Everything is configured in `config/ipregistry.php`, backed by environment varia
 | `retries.max` | `IPREGISTRY_RETRIES` | `1` | Automatic retries; kept low so failures never stall page loads. |
 | `timeout` | `IPREGISTRY_TIMEOUT` | `5` | Per-request timeout in seconds. |
 
-> Tip: always set `IPREGISTRY_FIELDS` to save credits. For example, `ip,location,security` covers geo features, blocking, and GDPR detection.
+> Tip: set `IPREGISTRY_FIELDS` to fetch only what you use, keeping payloads small and lookups fast. For example, `ip,location,security` covers geo features, blocking, and GDPR detection.
 
 `php artisan about` shows the effective configuration at a glance.
 

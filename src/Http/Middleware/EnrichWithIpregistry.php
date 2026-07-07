@@ -29,8 +29,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Enriches the request with Ipregistry data before your handlers run, so
  * `$request->ipregistry()` answers from memory everywhere downstream.
  *
- * Middleware parameters select the fields to fetch for the route, saving
- * credits and latency:
+ * Middleware parameters select the fields to fetch for the route, keeping
+ * responses small and fast:
  *
  * ```php
  * Route::get('/pricing', ...)->middleware('ipregistry:ip,location,currency');
