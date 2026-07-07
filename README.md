@@ -9,14 +9,20 @@
 
 This is the official Laravel integration for the [Ipregistry](https://ipregistry.co) IP geolocation and threat data API. It is built on top of the official [`ipregistry/ipregistry-php`](https://github.com/ipregistry/ipregistry-php) client library and makes it feel native to Laravel: auto-discovered configuration, a facade, a request macro, route middleware for country and threat blocking, Laravel cache integration, a first-class testing fake, and an artisan command.
 
+```php
+Route::get('/welcome', function (Request $request) {
+    return 'Hello ' . ($request->ipregistry()?->location->country->name ?? 'visitor') . '!';
+});
+```
+
 ## Features
 
-- **One call anywhere**: `$request->ipregistry()` returns the visitor's data from any controller, form request, or view — the API is queried at most once per request.
-- **Route middleware**: enrich requests, block countries (`ipregistry.countries:block,KP,IR`), and block threats/proxies/Tor/VPNs (`ipregistry.threats:tor,vpn`) with one line.
-- **Laravel caching**: lookups are memoized in any of your configured cache stores (Redis, Valkey, Memcached, ...), so repeated visits from the same IP do not consume additional credits.
+- **One call anywhere**: `$request->ipregistry()` returns the visitor's data from any controller, form request, or view. The API is queried at most once per request.
+- **Route middleware**: enrich requests, block countries (`ipregistry.countries:block,KP,IR`), and block threats, proxies, Tor, or VPNs (`ipregistry.threats:tor,vpn`) with one line.
+- **Laravel caching**: lookups are memoized in any of your configured cache stores (Redis, Valkey, Memcached, and so on), so repeated visits from the same IP do not consume additional credits.
 - **GDPR helper**: `Ipregistry::isEu()` based on the API's `location.in_eu` field.
 - **Safe by default**: fails open when Ipregistry is unreachable, honors your trusted proxy configuration, and never sends private IP addresses to the API.
-- **Testable**: `Ipregistry::fake()` swaps the service for a fake with canned responses and assertions — no HTTP, no credits.
+- **Testable**: `Ipregistry::fake()` swaps the service for a fake with canned responses and assertions. No HTTP, no credits.
 - **Batteries included**: `php artisan ipregistry:lookup 8.8.8.8` and `php artisan about` integration.
 
 ## Getting started
@@ -40,7 +46,7 @@ Add your API key to `.env`:
 IPREGISTRY_API_KEY=YOUR_API_KEY
 ```
 
-Optionally publish the configuration file:
+That's it. The service provider is auto-discovered. Optionally publish the configuration file:
 
 ```sh
 php artisan vendor:publish --tag=ipregistry-config
@@ -62,7 +68,7 @@ Route::get('/welcome', function (Request $request) {
 });
 ```
 
-Or use the facade for explicit lookups (these throw on failure, like the underlying client):
+Or use the facade for explicit lookups. These throw on failure, like the underlying client:
 
 ```php
 use Ipregistry\Laravel\Facades\Ipregistry;
@@ -75,7 +81,7 @@ $agents = Ipregistry::parseUserAgents($userAgent);
 Ipregistry::forRequest($request);                     // same as $request->ipregistry()
 ```
 
-Dependency injection works too — type-hint `Ipregistry\Laravel\Ipregistry` (or the raw `Ipregistry\IpregistryClient` for direct SDK access).
+Dependency injection works too: type-hint `Ipregistry\Laravel\Ipregistry`, or the raw `Ipregistry\IpregistryClient` for direct SDK access.
 
 ## Middleware
 
@@ -115,7 +121,7 @@ Route::middleware('ipregistry.threats')->group(...);
 Route::middleware('ipregistry.threats:proxy,tor,vpn')->group(...);
 ```
 
-Accepted signals: `proxy`, `tor`, `vpn`, `relay`, `anonymous` — each mapping to the same-named `security.is_*` field (`tor` also covers `is_tor_exit`).
+Accepted signals: `proxy`, `tor`, `vpn`, `relay`, `anonymous`. Each maps to the same-named `security.is_*` field of the Ipregistry response (`tor` also covers `is_tor_exit`).
 
 ### Fail open, fail closed
 
@@ -123,12 +129,9 @@ All middleware fail open by default: when the country or threat status could not
 
 For security-sensitive apps that must not serve traffic without IP intelligence, set `IPREGISTRY_FAIL_OPEN=false` (or `'fail_open' => false`): the `ipregistry` middleware then responds with 503 when a lookup fails.
 
-Ad-hoc decisions stay plain Laravel — no special API needed:
+Ad-hoc decisions stay plain Laravel, no special API needed:
 
 ```php
-Route::post('/checkout', CheckoutController::class)
-    ->middleware('ipregistry:ip,security')
-    // ...
 if ($request->ipregistry()?->security->isTor) {
     abort(403, 'Not available over Tor.');
 }
@@ -172,13 +175,13 @@ Everything is configured in `config/ipregistry.php`, backed by environment varia
 | `development_ip` | `IPREGISTRY_DEVELOPMENT_IP` | None | Fixed public IP used when the client IP is private (localhost). |
 | `fail_open` | `IPREGISTRY_FAIL_OPEN` | `true` | Let requests through when lookups fail. |
 
-> Tip: always set `IPREGISTRY_FIELDS` to save credits, e.g. `ip,location,security` covers geo features, blocking, and GDPR detection.
+> Tip: always set `IPREGISTRY_FIELDS` to save credits. For example, `ip,location,security` covers geo features, blocking, and GDPR detection.
 
 `php artisan about` shows the effective configuration at a glance.
 
 ### Client IP and trusted proxies
 
-The visitor IP comes from `$request->ip()`, so it honors Laravel's [trusted proxy configuration](https://laravel.com/docs/requests#configuring-trusted-proxies). Behind a load balancer or CDN, configure your trusted proxies (e.g. in `bootstrap/app.php`) or the extracted IP will be your proxy's, not your visitor's:
+The visitor IP comes from `$request->ip()`, so it honors Laravel's [trusted proxy configuration](https://laravel.com/docs/requests#configuring-trusted-proxies). Behind a load balancer or CDN, configure your trusted proxies (e.g. in `bootstrap/app.php`), otherwise the extracted IP will be your proxy's, not your visitor's:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
@@ -186,7 +189,7 @@ The visitor IP comes from `$request->ip()`, so it honors Laravel's [trusted prox
 })
 ```
 
-Private and reserved addresses are never sent to the API. On localhost that means `$request->ipregistry()` returns `null` — set a development IP to exercise geo features:
+Private and reserved addresses are never sent to the API. On localhost that means `$request->ipregistry()` returns `null`. Set a development IP to exercise geo features:
 
 ```sh
 # .env (local only)
@@ -195,7 +198,7 @@ IPREGISTRY_DEVELOPMENT_IP=66.165.2.7
 
 ### Caching
 
-Successful lookups are stored in the configured Laravel cache store with a 10-minute lifetime by default, keyed by IP and lookup options. With Redis/Valkey the cache is shared across workers and deploys. Within a single request the result is additionally memoized on the request object, so middleware, guards, controllers, and views share one lookup.
+Successful lookups are stored in the configured Laravel cache store with a 10-minute lifetime by default, keyed by IP and lookup options. With Redis or Valkey the cache is shared across workers and deploys. Within a single request the result is additionally memoized on the request object, so middleware, guards, controllers, and views share one lookup.
 
 ### Laravel Octane
 
@@ -231,7 +234,7 @@ public function test_tor_visitors_cannot_checkout(): void
 }
 ```
 
-Responses are keyed by IP address (`'*'` is the fallback, `'origin'` answers origin lookups) and use the API's payload shape — the `ip` key is filled in for you. Values can also be ready-made `IpInfo` instances, or `Throwable`s to simulate failures. Unlike the real service, the fake looks up private IPs too, so feature tests work without trusted-proxy setup.
+Responses are keyed by IP address (`'*'` is the fallback, `'origin'` answers origin lookups) and use the API's payload shape; the `ip` key is filled in for you. Values can also be ready-made `IpInfo` instances, or `Throwable`s to simulate failures. Unlike the real service, the fake looks up private IPs too, so feature tests work without trusted-proxy setup.
 
 Available assertions: `assertLookedUp()`, `assertNotLookedUp()`, `assertLookedUpTimes()`, `assertNothingLookedUp()`, `assertOriginLookedUp()`, `assertUserAgentsParsed()`, plus `lookups()` for the raw list.
 
@@ -247,13 +250,13 @@ php artisan ipregistry:lookup --hostname      # your server's own IP
 
 ## Errors
 
-Explicit lookups (`Ipregistry::lookup()` and friends) throw the client library's exceptions: `ApiException` for API-reported failures (with typed `errorCode`) and `ClientException` for network errors — both extend `IpregistryException`. See the [ipregistry-php error documentation](https://github.com/ipregistry/ipregistry-php#errors).
+Explicit lookups (`Ipregistry::lookup()` and friends) throw the client library's exceptions: `ApiException` for API-reported failures (with typed `errorCode`) and `ClientException` for network errors. Both extend `IpregistryException`. See the [ipregistry-php error documentation](https://github.com/ipregistry/ipregistry-php#errors).
 
 Request-aware helpers (`$request->ipregistry()`, `Ipregistry::forRequest()`, the middleware) never throw: failures are reported to your exception handler, `null` is returned, and the exception is available as `$request->attributes->get('ipregistry.error')`.
 
 ## Migrating from `ipregistry/ipregistry-php`
 
-Keep using the SDK directly for queue jobs and batch pipelines if you like — this package registers a ready-configured `Ipregistry\IpregistryClient` singleton you can inject. What the package adds on top: configuration, request-aware lookups with per-request memoization, IP extraction honoring trusted proxies, Laravel cache wiring, blocking middleware, and the testing fake.
+Keep using the SDK directly for queue jobs and batch pipelines if you like; this package registers a ready-configured `Ipregistry\IpregistryClient` singleton you can inject. What the package adds on top: configuration, request-aware lookups with per-request memoization, IP extraction honoring trusted proxies, Laravel cache wiring, blocking middleware, and the testing fake.
 
 ## Other resources
 
